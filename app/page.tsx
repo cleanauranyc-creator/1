@@ -166,6 +166,12 @@ const Phone = ({ className }: { className?: string }) => (
   </svg>
 )
 
+const Zap = ({ className }: { className?: string }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+  </svg>
+)
+
 const MessageSquare = ({ className }: { className?: string }) => (
   <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <path
@@ -360,9 +366,9 @@ export default function HomePage() {
   }, [])
 
   const features = [
-    { icon: Shield, text: "Background-Checked Professionals" },
-    { icon: Clock, text: "Flexible Scheduling" },
-    { icon: Zap, text: "Same-Day Service Available" },
+    { icon: Shield, text: "Background-Checked Professionals", subtext: "Insured & bonded" },
+    { icon: Clock, text: "Flexible Scheduling", subtext: "Same-day available" },
+    { icon: CheckCircle2, text: "100% Satisfaction Guarantee", subtext: "Or we re-clean free" },
   ]
 
   return (
@@ -370,76 +376,125 @@ export default function HomePage() {
       <section
         ref={heroRef}
         id="hero"
-        className="hero-section relative py-20 md:py-24 lg:min-h-[80vh] bg-background overflow-hidden lg:flex lg:items-center"
+        className="hero-section relative py-16 md:py-20 lg:min-h-[85vh] bg-background overflow-hidden lg:flex lg:items-center"
       >
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(6,182,212,0.03)_0%,transparent_50%),radial-gradient(circle_at_70%_80%,rgba(6,182,212,0.05)_0%,transparent_60%)] pointer-events-none"></div>
 
-        <div className="hero container mx-auto px-6 lg:px-6 relative z-10" style={{ maxWidth: "1200px" }}>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-10">
+        <div className="hero container mx-auto px-4 sm:px-6 lg:px-6 relative z-10" style={{ maxWidth: "1200px" }}>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10">
             <div
-              className="lg:col-span-7 space-y-8 lg:space-y-10"
+              className="lg:col-span-7 space-y-6 lg:space-y-8"
               style={{ gridColumn: "1 / span 7", maxWidth: "620px" }}
             >
-              <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black tracking-tight text-foreground leading-[1.1]">
-                CLEANLINE
-              </h1>
+              {/* Trust Badge - Above headline */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20">
+                <div className="flex -space-x-2">
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-cyan-500 flex items-center justify-center text-[10px] font-bold text-white border-2 border-background">
+                    <Star className="w-3 h-3" />
+                  </div>
+                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-[10px] font-bold text-white border-2 border-background">
+                    5.0
+                  </div>
+                </div>
+                <span className="text-sm font-semibold text-foreground">
+                  Rated 5.0 by 500+ NYC Families
+                </span>
+              </div>
 
-              <p className="text-xl lg:text-[22px] font-bold text-foreground leading-tight">
-                NYC's Most Trusted Cleaning Service. Premium Results, Fair Pricing.
-              </p>
+              {/* Headline - Benefit focused */}
+              <div className="space-y-3">
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight text-foreground leading-[1.05]">
+                  Your Home,{" "}
+                  <span className="text-gradient-primary">Spotlessly Clean.</span>
+                  <br />
+                  <span className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl">Without The Stress.</span>
+                </h1>
 
-              <div className="space-y-4">
+                <p className="text-lg sm:text-xl lg:text-[22px] text-muted-foreground leading-relaxed max-w-xl">
+                  Professional NYC cleaning service. Transparent pricing from <strong className="text-foreground">$130</strong>.
+                  Book in 2 minutes, relax while we handle the rest.
+                </p>
+              </div>
+
+              {/* Trust Features - Compact & Visual */}
+              <div className="grid grid-cols-1 gap-3">
                 {features.map((feature, index) => (
                   <div
                     key={index}
-                    className="flex items-center gap-4 p-4 rounded-xl bg-primary/5 hover:bg-primary/10 transition-colors"
+                    className="flex items-center gap-3 p-3 rounded-xl bg-gradient-to-r from-primary/5 to-transparent hover:from-primary/10 transition-all duration-300 group"
                   >
-                    <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
                       <feature.icon className="h-5 w-5 text-primary" />
                     </div>
-                    <span className="text-base font-semibold text-foreground">{feature.text}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm sm:text-base font-semibold text-foreground block">{feature.text}</span>
+                      <span className="text-xs text-muted-foreground">{feature.subtext}</span>
+                    </div>
                   </div>
                 ))}
               </div>
 
-              <div className="space-y-4">
-                {/* PRIMARY: Yellow button "Get Free Estimate" */}
-                <Button
-                  asChild
-                  size="lg"
-                  className="w-full lg:w-auto h-14 px-8 font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-300"
-                  style={{ backgroundColor: "#FDB913", color: "#000" }}
-                >
-                  <Link href="/booking">Get Free Estimate</Link>
-                </Button>
+              {/* CTA Section - High Converting */}
+              <div className="space-y-4 pt-2">
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* PRIMARY CTA */}
+                  <Button
+                    asChild
+                    size="lg"
+                    className="touch-target w-full sm:w-auto px-8 font-bold text-base sm:text-lg shadow-premium-lg hover:shadow-xl transition-all duration-300 active:scale-press"
+                    style={{ backgroundColor: "#FDB913", color: "#000" }}
+                  >
+                    <Link href="/booking" className="flex items-center justify-center gap-2">
+                      <Sparkles className="h-5 w-5" />
+                      Get Free Estimate
+                    </Link>
+                  </Button>
 
-                <p className="text-sm text-muted-foreground">
-                  Or call us:{" "}
-                  <a href="tel:+15162066466" className="underline hover:text-foreground transition-colors">
-                    516-206-6466
-                  </a>{" "}
-                  ·{" "}
-                  <a href="https://wa.me/15162066466" className="underline hover:text-foreground transition-colors">
-                    Text us on WhatsApp
-                  </a>
+                  {/* SECONDARY CTA - Phone */}
+                  <Button
+                    asChild
+                    size="lg"
+                    variant="outline"
+                    className="touch-target w-full sm:w-auto px-6 font-semibold border-2 hover:bg-primary/5 active:scale-press transition-all"
+                  >
+                    <a href="tel:+15162066466" className="flex items-center justify-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      Call Now
+                    </a>
+                  </Button>
+                </div>
+
+                {/* Urgency + Social Proof */}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 text-sm">
+                  <Badge variant="secondary" className="w-fit bg-amber-100 text-amber-900 dark:bg-amber-900/30 dark:text-amber-400 border-amber-200 dark:border-amber-800">
+                    <Clock className="h-3 w-3 mr-1" />
+                    Book today, get 15% off first clean
+                  </Badge>
+                  <span className="text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
+                      <strong className="text-foreground">7 slots</strong> left this week
+                    </span>
+                  </span>
+                </div>
+
+                {/* Trust Line */}
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Shield className="h-3.5 w-3.5 text-primary" />
+                  No payment required to book · Cancel anytime · 100% satisfaction guaranteed
                 </p>
               </div>
-
-              {/* Small text */}
-              <p className="text-sm text-muted-foreground flex items-center gap-2">
-                <Clock className="h-4 w-4" />
-                We respond within 15 minutes
-              </p>
             </div>
 
+            {/* Right Column - Social Proof */}
             <div
-              className="hidden lg:block lg:col-span-5 space-y-5"
+              className="lg:col-span-5 space-y-4"
               style={{ gridColumn: "8 / span 5", alignSelf: "start" }}
             >
-              <SocialProofCard />
-
-              {/* Promo Banner */}
-              <PromoBanner />
+              <div className="lg:sticky lg:top-24 space-y-4">
+                <SocialProofCard />
+                <PromoBanner />
+              </div>
             </div>
           </div>
         </div>

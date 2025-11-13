@@ -1,133 +1,23 @@
 // ============================================
 // BOOKING UTILITY FUNCTIONS
 // ============================================
+// All calculations now use master-config.ts as single source of truth
 
-import type { BookingFormData, PricingBreakdown, BookingState, EstimateBreakdown } from "./booking-types"
-import { calculateBookingPrice, SERVICES } from "./booking-pricing-engine"
+import type { BookingState, EstimateBreakdown, AddOnSelection } from "./booking-types"
+import {
+  SERVICES,
+  getFlatRate,
+  getAddonPrice,
+  checkBundleDiscount,
+  HOURLY_RATES,
+  formatPrice,
+  formatTime,
+  type ServiceType,
+} from "./master-config"
 
-// Calculate pricing breakdown for display
-export function calculatePricingBreakdown(formData: BookingFormData): PricingBreakdown | null {
-  if (!formData.serviceId) return null
-
-  const service = SERVICES[formData.serviceId as keyof typeof SERVICES]
-
-  // Consultation services - custom quote
-  if (service.type === "consultation") {
-    return {
-      basePrice: "CUSTOM_QUOTE",
-      baseLabel: service.name,
-      addOns: [],
-      addOnsTotal: 0,
-      subtotal: "CUSTOM_QUOTE",
-      grandTotal: "CUSTOM_QUOTE",
-    }
-  }
-
-  try {
-    // Flat rate or hourly services
-    const result = calculateBookingPrice({
-      serviceId: formData.serviceId,
-      bedrooms: formData.propertySize?.bedrooms,
-      bathrooms: formData.propertySize?.bathrooms,
-      hours: formData.hourlyData?.hours,
-      teamSize: formData.hourlyData?.teamSize,
-      selectedAddons: formData.selectedAddons.map((a) => ({
-        id: a.id,
-        quantity: a.quantity || 1,
-      })),
-    })
-
-    return {
-      basePrice: result.basePrice as number,
-      baseLabel: service.name,
-      addOns: result.breakdown.addOns,
-      addOnsTotal: result.addOnsTotal,
-      subtotal: result.grandTotal as number,
-      grandTotal: result.grandTotal as number,
-      estimatedHours: result.estimatedHours,
-    }
-  } catch (error) {
-    console.error("[v0] Pricing calculation error:", error)
-    return null
-  }
-}
-
-// Format time display
-export function formatTime(minutes: number): string {
-  const hours = Math.floor(minutes / 60)
-  const mins = minutes % 60
-
-  if (mins === 0) return `${hours}h`
-  return `${hours}h ${mins}m`
-}
-
-// Validate step data before proceeding
-export function validateStep(step: number, formData: BookingFormData): { valid: boolean; errors: string[] } {
-  const errors: string[] = []
-
-  switch (step) {
-    case 1:
-      if (!formData.serviceId) errors.push("Please select a service")
-      break
-
-    case 2:
-      if (formData.serviceType === "flat") {
-        if (!formData.propertySize?.bedrooms && formData.propertySize?.bedrooms !== 0) {
-          errors.push("Please select number of bedrooms")
-        }
-        if (!formData.propertySize?.bathrooms) {
-          errors.push("Please select number of bathrooms")
-        }
-      } else if (formData.serviceType === "hourly") {
-        if (!formData.hourlyData?.hours) {
-          errors.push("Please select number of hours")
-        }
-      }
-      break
-
-    case 4: // Scheduling (step 3 or 4 depending on flow)
-      if (!formData.scheduling.preferredDate) {
-        errors.push("Please select a date")
-      }
-      if (!formData.scheduling.timeSlot) {
-        errors.push("Please select a time slot")
-      }
-      break
-
-    case 5: // Contact info (step 4 or 5)
-      const contact = formData.contactInfo
-      if (!contact.firstName) errors.push("First name required")
-      if (!contact.lastName) errors.push("Last name required")
-      if (!contact.email) errors.push("Email required")
-      if (!contact.phone) errors.push("Phone number required")
-      if (!contact.streetAddress) errors.push("Street address required")
-      if (!contact.zipCode) errors.push("ZIP code required")
-      if (!contact.contactMethod) errors.push("Preferred contact method required")
-      break
-  }
-
-  return {
-    valid: errors.length === 0,
-    errors,
-  }
-}
-
-// Format date for display
-export function formatDate(date: Date): string {
-  return new Intl.DateTimeFormat("en-US", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    year: "numeric",
-  }).format(date)
-}
-
-// Time slot labels
-export const TIME_SLOTS = {
-  morning: "Morning (8am - 11am)",
-  afternoon: "Afternoon (12pm - 3pm)",
-  evening: "Evening (4pm - 7pm)",
-}
+// ============================================
+// MAIN ESTIMATE CALCULATION
+// ============================================
 
 export function calculateEstimate(state: BookingState): {
   total: number
@@ -137,7 +27,7 @@ export function calculateEstimate(state: BookingState): {
   breakdown: Array<{ label: string; amount: number; time?: number }>
 } {
   // Default empty estimate
-  if (!state.serviceId || !state.propertyData.propertyType) {
+  if (!state.serviceId) {
     return {
       total: 0,
       totalTime: 0,
@@ -147,93 +37,19 @@ export function calculateEstimate(state: BookingState): {
     }
   }
 
-  try {
-    const service = SERVICES.find((s) => s.id === state.serviceId)
-    if (!service) {
-      return {
-        total: 0,
-        totalTime: 0,
-        basePrice: 0,
-        addOnsTotal: 0,
-        breakdown: [],
-      }
+  const service = SERVICES[state.serviceId as ServiceType]
+  if (!service) {
+    return {
+      total: 0,
+      totalTime: 0,
+      basePrice: 0,
+      addOnsTotal: 0,
+      breakdown: [],
     }
+  }
 
-    // For flat rate services
-    if (service.pricing.type === "flat_rate") {
-      const propertyKey = `${state.propertyData.bedrooms || 0}br_${state.propertyData.bathrooms || 1}ba`
-      const baseRate = service.pricing.baseRates.find((r) => r.config === propertyKey)
-
-      if (!baseRate) {
-        return {
-          total: 0,
-          totalTime: 0,
-          basePrice: 0,
-          addOnsTotal: 0,
-          breakdown: [],
-        }
-      }
-
-      const basePrice = baseRate.price
-      const baseTime = baseRate.timeMinutes || 120
-
-      // Calculate add-ons
-      let addOnsTotal = 0
-      let addOnsTime = 0
-      const breakdown: Array<{ label: string; amount: number; time?: number }> = []
-
-      breakdown.push({
-        label: `${service.name} - ${propertyKey.replace("_", " / ")}`,
-        amount: basePrice,
-        time: baseTime,
-      })
-
-      state.addOns.forEach((addon) => {
-        const addonDef = service.pricing.addOns?.find((a) => a.id === addon.id)
-        if (addonDef) {
-          const addonPrice = addonDef.price * (addon.quantity || 1)
-          const addonTime = (addonDef.timeMinutes || 0) * (addon.quantity || 1)
-          addOnsTotal += addonPrice
-          addOnsTime += addonTime
-          breakdown.push({
-            label: `${addonDef.name}${addon.quantity && addon.quantity > 1 ? ` x${addon.quantity}` : ""}`,
-            amount: addonPrice,
-            time: addonTime,
-          })
-        }
-      })
-
-      return {
-        total: basePrice + addOnsTotal,
-        totalTime: baseTime + addOnsTime,
-        basePrice,
-        addOnsTotal,
-        breakdown,
-      }
-    }
-
-    // For hourly services
-    if (service.pricing.type === "hourly") {
-      const hours = state.propertyData.hours || 2
-      const rate = service.pricing.hourlyRate || 50
-      const total = hours * rate
-
-      return {
-        total,
-        totalTime: hours * 60,
-        basePrice: total,
-        addOnsTotal: 0,
-        breakdown: [
-          {
-            label: `${service.name} - ${hours} hour${hours > 1 ? "s" : ""}`,
-            amount: total,
-            time: hours * 60,
-          },
-        ],
-      }
-    }
-
-    // For consultation services
+  // CONSULTATION SERVICES - Custom Quote
+  if (service.type === "consultation") {
     return {
       total: 0,
       totalTime: 0,
@@ -246,24 +62,220 @@ export function calculateEstimate(state: BookingState): {
         },
       ],
     }
-  } catch (error) {
-    console.error("[v0] Calculate estimate error:", error)
+  }
+
+  // HOURLY SERVICES - Custom/Organizing
+  if (service.type === "hourly") {
+    const hours = state.propertyData.hours || 2
+    const teamSize = state.propertyData.teamSize || 1
+    const rate = HOURLY_RATES[state.serviceId as "custom" | "organizing"]
+    const total = hours * rate * teamSize
+
     return {
-      total: 0,
-      totalTime: 0,
-      basePrice: 0,
+      total,
+      totalTime: hours * 60,
+      basePrice: total,
       addOnsTotal: 0,
-      breakdown: [],
+      breakdown: [
+        {
+          label: `${service.name} - ${hours}h × ${teamSize} cleaner${teamSize > 1 ? "s" : ""}`,
+          amount: total,
+          time: hours * 60,
+        },
+      ],
     }
   }
+
+  // FLAT RATE SERVICES - Standard/Deep/Move
+  if (service.type === "flat") {
+    const bedrooms = state.propertyData.bedrooms
+    const bathrooms = state.propertyData.bathrooms
+
+    if (bedrooms === null || bathrooms === null) {
+      return {
+        total: 0,
+        totalTime: 0,
+        basePrice: 0,
+        addOnsTotal: 0,
+        breakdown: [],
+      }
+    }
+
+    // Get base rate from master config
+    const flatRate = getFlatRate(state.serviceId as "standard" | "deep" | "move", bedrooms, bathrooms)
+
+    if (!flatRate) {
+      return {
+        total: 0,
+        totalTime: 0,
+        basePrice: 0,
+        addOnsTotal: 0,
+        breakdown: [],
+      }
+    }
+
+    const basePrice = flatRate.price
+    const baseTime = flatRate.hours * 60 // convert to minutes
+
+    const breakdown: Array<{ label: string; amount: number; time?: number }> = []
+
+    breakdown.push({
+      label: `${service.name} - ${flatRate.label}`,
+      amount: basePrice,
+      time: baseTime,
+    })
+
+    // Calculate add-ons
+    let addOnsTotal = 0
+    let addOnsTime = 0
+
+    state.addOns.forEach((addon) => {
+      const addonCalc = getAddonPrice(addon.id as any, addon.quantity || 1, bedrooms, state.serviceId as string)
+
+      if (addonCalc.price > 0 || addonCalc.time > 0) {
+        addOnsTotal += addonCalc.price
+        addOnsTime += addonCalc.time
+
+        breakdown.push({
+          label: addon.id + (addon.quantity && addon.quantity > 1 ? ` ×${addon.quantity}` : ""),
+          amount: addonCalc.price,
+          time: addonCalc.time,
+        })
+      }
+    })
+
+    // Check for bundle discounts
+    const bundleDiscount = checkBundleDiscount(state.addOns.map((a) => a.id))
+    if (bundleDiscount > 0) {
+      addOnsTotal -= bundleDiscount
+      breakdown.push({
+        label: "Bundle Discount",
+        amount: -bundleDiscount,
+      })
+    }
+
+    return {
+      total: basePrice + addOnsTotal,
+      totalTime: baseTime + addOnsTime,
+      basePrice,
+      addOnsTotal,
+      breakdown,
+    }
+  }
+
+  // Fallback
+  return {
+    total: 0,
+    totalTime: 0,
+    basePrice: 0,
+    addOnsTotal: 0,
+    breakdown: [],
+  }
 }
+
+// ============================================
+// FORMAT ESTIMATE FOR DISPLAY
+// ============================================
 
 export function formatEstimate(estimate: ReturnType<typeof calculateEstimate>): EstimateBreakdown {
   return {
     total: estimate.total,
     totalTime: estimate.totalTime,
     breakdown: estimate.breakdown,
-    displayTotal: estimate.total > 0 ? `$${estimate.total}` : "Custom Quote",
+    displayTotal: estimate.total > 0 ? formatPrice(estimate.total) : "Custom Quote",
     displayTime: estimate.totalTime > 0 ? formatTime(estimate.totalTime) : "TBD",
   }
 }
+
+// ============================================
+// VALIDATION HELPERS
+// ============================================
+
+export function validateStep(
+  step: number,
+  state: BookingState
+): {
+  valid: boolean
+  errors: string[]
+} {
+  const errors: string[] = []
+
+  if (!state.serviceId) {
+    return { valid: false, errors: ["Service not selected"] }
+  }
+
+  const service = SERVICES[state.serviceId as ServiceType]
+  if (!service) {
+    return { valid: false, errors: ["Invalid service"] }
+  }
+
+  switch (step) {
+    case 1:
+      // Service selection - always valid if we got here
+      break
+
+    case 2:
+      // Property details
+      if (service.type === "flat") {
+        if (state.propertyData.bedrooms === null) errors.push("Please select number of bedrooms")
+        if (state.propertyData.bathrooms === null) errors.push("Please select number of bathrooms")
+      } else if (service.type === "hourly") {
+        if (!state.propertyData.hours || state.propertyData.hours < 2) {
+          errors.push("Please select at least 2 hours")
+        }
+        if (!state.propertyData.teamSize || state.propertyData.teamSize < 1) {
+          errors.push("Please select team size")
+        }
+      }
+      break
+
+    case 3:
+      // Add-ons - optional, always valid
+      break
+
+    case 4:
+      // Date/Time
+      if (!state.dateTime.date) errors.push("Please select a date")
+      if (!state.dateTime.time) errors.push("Please select a time")
+      break
+
+    case 5:
+      // Contact info
+      if (!state.contactInfo.firstName) errors.push("First name required")
+      if (!state.contactInfo.email) errors.push("Email required")
+      if (!state.contactInfo.phone) errors.push("Phone required")
+      if (!state.contactInfo.address) errors.push("Address required")
+      break
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+  }
+}
+
+// ============================================
+// DATE/TIME HELPERS
+// ============================================
+
+export function formatDate(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(date)
+}
+
+export const TIME_SLOTS = {
+  morning: "Morning (8am - 11am)",
+  midday: "Midday (11am - 2pm)",
+  afternoon: "Afternoon (2pm - 5pm)",
+  evening: "Evening (5pm - 8pm)",
+}
+
+// ============================================
+// RE-EXPORT FROM MASTER CONFIG
+// ============================================
+
+export { formatPrice, formatTime }

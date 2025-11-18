@@ -47,7 +47,7 @@ export function calculatePricingBreakdown(formData: BookingFormData): PricingBre
       estimatedHours: result.estimatedHours,
     }
   } catch (error) {
-    console.error("[v0] Pricing calculation error:", error)
+    console.error("[CleanAura] Pricing calculation error:", error)
     return null
   }
 }
@@ -247,7 +247,7 @@ export function calculateEstimate(state: BookingState): {
       ],
     }
   } catch (error) {
-    console.error("[v0] Calculate estimate error:", error)
+    console.error("[CleanAura] Calculate estimate error:", error)
     return {
       total: 0,
       totalTime: 0,

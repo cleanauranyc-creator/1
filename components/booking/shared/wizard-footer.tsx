@@ -31,7 +31,7 @@ export function WizardFooter({
     try {
       await onSubmit()
     } catch (error) {
-      console.error("[v0] Submit error:", error)
+      console.error("[CleanAura] Submit error:", error)
     } finally {
       setIsSubmitting(false)
     }

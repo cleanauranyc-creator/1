@@ -167,7 +167,7 @@ export default function BookingPage() {
   }, [state.serviceId])
 
   const canContinue = useMemo(() => {
-    console.log("[v0] Checking canContinue", {
+    console.log("[CleanAura] Checking canContinue", {
       currentStep: state.currentStep,
       serviceId: state.serviceId,
       propertyData: state.propertyData,
@@ -245,7 +245,7 @@ export default function BookingPage() {
   }
 
   const handleSubmit = async () => {
-    console.log("[v0] Submitting booking:", state)
+    console.log("[CleanAura] Submitting booking:", state)
     // Will implement Supabase submit in Phase 5
     router.push("/booking/confirmation")
   }

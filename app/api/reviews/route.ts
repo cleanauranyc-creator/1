@@ -13,7 +13,7 @@ export async function GET() {
 
     return NextResponse.json(reviews)
   } catch (error) {
-    console.error("[v0] Error fetching reviews:", error)
+    console.error("[CleanAura] Error fetching reviews:", error)
     return NextResponse.json({ error: "Failed to fetch reviews" }, { status: 500 })
   }
 }

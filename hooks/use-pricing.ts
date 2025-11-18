@@ -18,7 +18,7 @@ export function usePricing(state: BookingState) {
       }
       return calculateBookingPrice(state)
     } catch (error) {
-      console.error("[v0] Pricing calculation error:", error)
+      console.error("[CleanAura] Pricing calculation error:", error)
       return null
     }
   }, [state]) // Updated to use the entire state object as a dependency

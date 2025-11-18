@@ -56,7 +56,7 @@ export function ReviewsTicker() {
         setReviews(data)
         setIsLoading(false)
       } catch (err) {
-        console.error("[v0] Error fetching reviews:", err)
+        console.error("[CleanAura] Error fetching reviews:", err)
         setError(true)
         setReviews([FALLBACK_REVIEW])
         setIsLoading(false)

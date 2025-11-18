@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "context7": {
+      "url": "https://mcp.context7.com/mcp",
+      "apiKey": "${CONTEXT7_API_KEY}",
+      "metadata": {
+        "sessionId": "ctx7sk-b446be1c-2ed9-495d-b4db-f53a8ec538ee",
+        "apiEndpoint": "https://context7.com/api/v1"
+      }
+    }
+  }
+}
